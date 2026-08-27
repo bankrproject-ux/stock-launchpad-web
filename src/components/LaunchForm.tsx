@@ -1,10 +1,5 @@
-import {
-  useState
-} from "react";
-
-import {
-  parseUnits
-} from "viem";
+import { useState } from "react";
+import { parseUnits } from "viem";
 
 import {
   useAccount,
@@ -24,35 +19,22 @@ import {
 } from "../lib/abi";
 
 export default function LaunchForm() {
-  const {
-    isConnected
-  } = useAccount();
+  const { isConnected } = useAccount();
 
-  const [name, setName] =
-    useState("");
-
-  const [symbol, setSymbol] =
-    useState("");
-
-  const [pairIndex, setPairIndex] =
-    useState(0);
-
-  const [reserve, setReserve] =
-    useState("1");
+  const [name, setName] = useState("");
+  const [symbol, setSymbol] = useState("");
+  const [pairIndex, setPairIndex] = useState(0);
+  const [reserve, setReserve] = useState("1");
 
   const selectedPair =
     PAIR_ASSETS[pairIndex];
 
-  const {
-    data: pairDecimals
-  } = useReadContract({
-    address:
-      selectedPair.address,
-    abi:
-      erc20Abi,
-    functionName:
-      "decimals"
-  });
+  const { data: pairDecimals } =
+    useReadContract({
+      address: selectedPair.address,
+      abi: erc20Abi,
+      functionName: "decimals"
+    });
 
   const {
     writeContract,
@@ -64,19 +46,18 @@ export default function LaunchForm() {
   const {
     isLoading: isConfirming,
     isSuccess
-  } =
-    useWaitForTransactionReceipt({
-      hash
-    });
+  } = useWaitForTransactionReceipt({
+    hash
+  });
 
   function launch() {
     if (!name.trim()) {
-      alert("Masukkan nama token");
+      alert("Enter token name");
       return;
     }
 
     if (!symbol.trim()) {
-      alert("Masukkan ticker token");
+      alert("Enter token ticker");
       return;
     }
 
@@ -84,54 +65,34 @@ export default function LaunchForm() {
       !reserve ||
       Number(reserve) <= 0
     ) {
-      alert(
-        "Starting reserve harus lebih dari 0"
-      );
-
+      alert("Invalid reserve");
       return;
     }
 
-    if (
-      pairDecimals === undefined
-    ) {
-      alert(
-        "Sedang membaca decimals pair asset"
-      );
-
+    if (pairDecimals === undefined) {
+      alert("Pair asset still loading");
       return;
     }
 
     let reserveAmount: bigint;
 
     try {
-      reserveAmount =
-        parseUnits(
-          reserve,
-          pairDecimals
-        );
-    } catch {
-      alert(
-        "Jumlah reserve tidak valid"
+      reserveAmount = parseUnits(
+        reserve,
+        pairDecimals
       );
-
+    } catch {
+      alert("Invalid reserve amount");
       return;
     }
 
     writeContract({
-      address:
-        LAUNCHPAD_ADDRESS,
-
-      abi:
-        launchpadAbi,
-
-      functionName:
-        "launchToken",
-
+      address: LAUNCHPAD_ADDRESS,
+      abi: launchpadAbi,
+      functionName: "launchToken",
       args: [
         name.trim(),
-        symbol
-          .trim()
-          .toUpperCase(),
+        symbol.trim().toUpperCase(),
         selectedPair.address,
         reserveAmount
       ]
@@ -139,8 +100,7 @@ export default function LaunchForm() {
   }
 
   const loading =
-    isPending ||
-    isConfirming;
+    isPending || isConfirming;
 
   return (
     <div className="launch-form">
@@ -149,61 +109,45 @@ export default function LaunchForm() {
       </div>
 
       <div className="field">
-        <label>
-          Token name
-        </label>
+        <label>Token name</label>
 
         <input
           value={name}
           onChange={(e) =>
-            setName(
-              e.target.value
-            )
+            setName(e.target.value)
           }
           placeholder="Example Token"
         />
       </div>
 
       <div className="field">
-        <label>
-          Token ticker
-        </label>
+        <label>Token ticker</label>
 
         <input
           value={symbol}
           onChange={(e) =>
-            setSymbol(
-              e.target.value
-            )
+            setSymbol(e.target.value)
           }
           placeholder="TOKEN"
         />
       </div>
 
       <div className="field">
-        <label>
-          Pair asset
-        </label>
+        <label>Pair asset</label>
 
         <div className="pair-grid">
           {PAIR_ASSETS.map(
-            (
-              pair,
-              index
-            ) => (
+            (pair, index) => (
               <button
                 key={pair.address}
                 type="button"
                 className={
-                  pairIndex ===
-                  index
+                  pairIndex === index
                     ? "pair-option active"
                     : "pair-option"
                 }
                 onClick={() =>
-                  setPairIndex(
-                    index
-                  )
+                  setPairIndex(index)
                 }
               >
                 {pair.symbol}
@@ -223,9 +167,7 @@ export default function LaunchForm() {
           inputMode="decimal"
           value={reserve}
           onChange={(e) =>
-            setReserve(
-              e.target.value
-            )
+            setReserve(e.target.value)
           }
           placeholder="1"
         />
@@ -254,8 +196,8 @@ export default function LaunchForm() {
 
       {!isConnected ? (
         <button
-          disabled
           className="primary-button disabled"
+          disabled
         >
           Connect wallet first
         </button>
@@ -265,14 +207,11 @@ export default function LaunchForm() {
           disabled={loading}
           onClick={launch}
         >
-          {isPending &&
-            "Confirm wallet..."}
-
-          {isConfirming &&
-            "Launching..."}
-
-          {!loading &&
-            "Launch coin"}
+          {isPending
+            ? "Confirm wallet..."
+            : isConfirming
+              ? "Launching..."
+              : "Launch coin"}
         </button>
       )}
 
