@@ -1,40 +1,51 @@
-import { http, createConfig } from "wagmi";
-import { injected } from "wagmi/connectors";
-import { defineChain } from "viem";
+import {
+  http,
+  createConfig
+} from "wagmi";
 
-export const robinhoodChain = defineChain({
-  id: 4663,
-  name: "Robinhood Chain",
-  nativeCurrency: {
-    name: "Ether",
-    symbol: "ETH",
-    decimals: 18
-  },
-  rpcUrls: {
-    default: {
-      http: [
-        "https://rpc.mainnet.chain.robinhood.com"
-      ]
-    }
-  },
-  blockExplorers: {
-    default: {
-      name: "Blockscout",
-      url: "https://robinhoodchain.blockscout.com"
-    }
-  }
-});
+import {
+  injected
+} from "wagmi/connectors";
 
-export const config = createConfig({
-  chains: [
-    robinhoodChain
-  ],
-  connectors: [
-    injected()
-  ],
-  transports: {
-    [robinhoodChain.id]: http(
-      "https://rpc.mainnet.chain.robinhood.com"
-    )
-  }
-});
+import {
+  defineChain
+} from "viem";
+
+export const robinhoodChain =
+  defineChain({
+    id: 4663,
+
+    name: "Robinhood Chain",
+
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18
+    },
+
+    rpcUrls: {
+      default: {
+        http: [
+          "https://rpc.mainnet.chain.robinhood.com"
+        ]
+      }
+    }
+  });
+
+export const config =
+  createConfig({
+    chains: [
+      robinhoodChain
+    ],
+
+    connectors: [
+      injected()
+    ],
+
+    transports: {
+      [robinhoodChain.id]:
+        http(
+          "https://rpc.mainnet.chain.robinhood.com"
+        )
+    }
+  });
