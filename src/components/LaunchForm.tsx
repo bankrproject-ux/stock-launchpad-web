@@ -3,14 +3,15 @@ import {
 } from "react";
 
 import {
-  useAccount,
-  useWriteContract,
-  useWaitForTransactionReceipt
-} from "wagmi";
-
-import {
   parseUnits
 } from "viem";
+
+import {
+  useAccount,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  useWriteContract
+} from "wagmi";
 
 import {
   LAUNCHPAD_ADDRESS,
@@ -18,7 +19,8 @@ import {
 } from "../lib/config";
 
 import {
-  launchpadAbi
+  launchpadAbi,
+  erc20Abi
 } from "../lib/abi";
 
 export default function LaunchForm() {
@@ -42,8 +44,19 @@ export default function LaunchForm() {
     PAIR_ASSETS[pairIndex];
 
   const {
-    data: hash,
+    data: pairDecimals
+  } = useReadContract({
+    address:
+      selectedPair.address,
+    abi:
+      erc20Abi,
+    functionName:
+      "decimals"
+  });
+
+  const {
     writeContract,
+    data: hash,
     isPending,
     error
   } = useWriteContract();
@@ -78,6 +91,32 @@ export default function LaunchForm() {
       return;
     }
 
+    if (
+      pairDecimals === undefined
+    ) {
+      alert(
+        "Sedang membaca decimals pair asset"
+      );
+
+      return;
+    }
+
+    let reserveAmount: bigint;
+
+    try {
+      reserveAmount =
+        parseUnits(
+          reserve,
+          pairDecimals
+        );
+    } catch {
+      alert(
+        "Jumlah reserve tidak valid"
+      );
+
+      return;
+    }
+
     writeContract({
       address:
         LAUNCHPAD_ADDRESS,
@@ -90,33 +129,45 @@ export default function LaunchForm() {
 
       args: [
         name.trim(),
-        symbol.trim().toUpperCase(),
+        symbol
+          .trim()
+          .toUpperCase(),
         selectedPair.address,
-        parseUnits(reserve, 18)
+        reserveAmount
       ]
     });
   }
 
+  const loading =
+    isPending ||
+    isConfirming;
+
   return (
     <div className="launch-form">
       <div className="section-label">
-        Launch a coin
+        LAUNCH A COIN
       </div>
 
       <div className="field">
-        <label>Name</label>
+        <label>
+          Token name
+        </label>
 
         <input
           value={name}
           onChange={(e) =>
-            setName(e.target.value)
+            setName(
+              e.target.value
+            )
           }
-          placeholder="Token name"
+          placeholder="Example Token"
         />
       </div>
 
       <div className="field">
-        <label>Ticker</label>
+        <label>
+          Token ticker
+        </label>
 
         <input
           value={symbol}
@@ -125,25 +176,34 @@ export default function LaunchForm() {
               e.target.value
             )
           }
-          placeholder="$TICKER"
+          placeholder="TOKEN"
         />
       </div>
 
       <div className="field">
-        <label>Pool pairing</label>
+        <label>
+          Pair asset
+        </label>
 
         <div className="pair-grid">
           {PAIR_ASSETS.map(
-            (pair, index) => (
+            (
+              pair,
+              index
+            ) => (
               <button
                 key={pair.address}
+                type="button"
                 className={
-                  pairIndex === index
+                  pairIndex ===
+                  index
                     ? "pair-option active"
                     : "pair-option"
                 }
                 onClick={() =>
-                  setPairIndex(index)
+                  setPairIndex(
+                    index
+                  )
                 }
               >
                 {pair.symbol}
@@ -155,16 +215,17 @@ export default function LaunchForm() {
 
       <div className="field">
         <label>
-          Starting virtual reserve
+          Virtual starting reserve
         </label>
 
         <input
-          type="number"
-          min="0"
-          step="any"
+          type="text"
+          inputMode="decimal"
           value={reserve}
           onChange={(e) =>
-            setReserve(e.target.value)
+            setReserve(
+              e.target.value
+            )
           }
           placeholder="1"
         />
@@ -181,23 +242,19 @@ export default function LaunchForm() {
         </div>
 
         <div>
-          <span>Creator</span>
+          <span>Creator fee</span>
           <strong>0.85%</strong>
         </div>
 
         <div>
-          <span>Platform</span>
+          <span>Platform fee</span>
           <strong>0.65%</strong>
-        </div>
-
-        <div>
-          <span>Supply</span>
-          <strong>1B</strong>
         </div>
       </div>
 
       {!isConnected ? (
         <button
+          disabled
           className="primary-button disabled"
         >
           Connect wallet first
@@ -205,10 +262,7 @@ export default function LaunchForm() {
       ) : (
         <button
           className="primary-button"
-          disabled={
-            isPending ||
-            isConfirming
-          }
+          disabled={loading}
           onClick={launch}
         >
           {isPending &&
@@ -217,8 +271,7 @@ export default function LaunchForm() {
           {isConfirming &&
             "Launching..."}
 
-          {!isPending &&
-            !isConfirming &&
+          {!loading &&
             "Launch coin"}
         </button>
       )}
