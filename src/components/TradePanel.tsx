@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { parseUnits } from "viem";
 
 import {
@@ -8,14 +8,8 @@ import {
   useWriteContract
 } from "wagmi";
 
-import {
-  LAUNCHPAD_ADDRESS
-} from "../lib/config";
-
-import {
-  launchpadAbi,
-  erc20Abi
-} from "../lib/abi";
+import { LAUNCHPAD_ADDRESS } from "../lib/config";
+import { launchpadAbi, erc20Abi } from "../lib/abi";
 
 type Props = {
   token: `0x${string}`;
@@ -28,27 +22,18 @@ export default function TradePanel({
   pair,
   pairSymbol
 }: Props) {
-  const [mode, setMode] =
-    useState<"buy" | "sell">("buy");
+  const [mode, setMode] = useState<"buy" | "sell">("buy");
+  const [amount, setAmount] = useState("");
 
-  const [amount, setAmount] =
-    useState("");
+  const { address } = useAccount();
 
-  const {
-    address
-  } = useAccount();
-
-  const {
-    data: pairDecimals
-  } = useReadContract({
+  const { data: pairDecimals } = useReadContract({
     address: pair,
     abi: erc20Abi,
     functionName: "decimals"
   });
 
-  const {
-    data: tokenDecimals
-  } = useReadContract({
+  const { data: tokenDecimals } = useReadContract({
     address: token,
     abi: erc20Abi,
     functionName: "decimals"
@@ -62,15 +47,8 @@ export default function TradePanel({
   let amountWei = 0n;
 
   try {
-    if (
-      amount &&
-      Number(amount) > 0 &&
-      decimals !== undefined
-    ) {
-      amountWei = parseUnits(
-        amount,
-        decimals
-      );
+    if (amount && decimals !== undefined) {
+      amountWei = parseUnits(amount, decimals);
     }
   } catch {
     amountWei = 0n;
@@ -89,10 +67,7 @@ export default function TradePanel({
     abi: erc20Abi,
     functionName: "allowance",
     args: address
-      ? [
-          address,
-          LAUNCHPAD_ADDRESS
-        ]
+      ? [address, LAUNCHPAD_ADDRESS]
       : undefined,
     query: {
       enabled: Boolean(address)
@@ -110,16 +85,31 @@ export default function TradePanel({
   const {
     isLoading: isConfirming,
     isSuccess
-  } =
-    useWaitForTransactionReceipt({
-      hash
-    });
+  } = useWaitForTransactionReceipt({
+    hash
+  });
+
+  useEffect(() => {
+    if (!isSuccess) return;
+
+    refetchAllowance();
+    setAmount("");
+    reset();
+  }, [
+    isSuccess,
+    refetchAllowance,
+    reset
+  ]);
+
+  const loading =
+    isPending || isConfirming;
 
   const needsApproval =
-    allowance === undefined ||
-    allowance < amountWei;
+    amountWei > 0n &&
+    (allowance === undefined ||
+      allowance < amountWei);
 
-  function handleMode(
+  function changeMode(
     newMode: "buy" | "sell"
   ) {
     setMode(newMode);
@@ -128,9 +118,7 @@ export default function TradePanel({
   }
 
   function approve() {
-    if (amountWei <= 0n) {
-      return;
-    }
+    if (amountWei <= 0n) return;
 
     writeContract({
       address: assetForApproval,
@@ -144,9 +132,7 @@ export default function TradePanel({
   }
 
   function trade() {
-    if (amountWei <= 0n) {
-      return;
-    }
+    if (amountWei <= 0n) return;
 
     if (mode === "buy") {
       writeContract({
@@ -173,17 +159,6 @@ export default function TradePanel({
     }
   }
 
-  function handleSuccess() {
-    setTimeout(() => {
-      refetchAllowance();
-      reset();
-    }, 1000);
-  }
-
-  const isLoading =
-    isPending ||
-    isConfirming;
-
   return (
     <div className="trade-panel">
       <div className="trade-tabs">
@@ -194,7 +169,7 @@ export default function TradePanel({
               : ""
           }
           onClick={() =>
-            handleMode("buy")
+            changeMode("buy")
           }
         >
           Buy
@@ -207,7 +182,7 @@ export default function TradePanel({
               : ""
           }
           onClick={() =>
-            handleMode("sell")
+            changeMode("sell")
           }
         >
           Sell
@@ -233,27 +208,32 @@ export default function TradePanel({
       </div>
 
       {!address && (
-        <button className="primary-button disabled">
+        <button
+          className="primary-button disabled"
+          disabled
+        >
           Connect wallet first
         </button>
       )}
 
-      {address &&
-        amountWei <= 0n && (
-          <button className="primary-button disabled">
-            Enter amount
-          </button>
-        )}
+      {address && amountWei === 0n && (
+        <button
+          className="primary-button disabled"
+          disabled
+        >
+          Enter amount
+        </button>
+      )}
 
       {address &&
         amountWei > 0n &&
         needsApproval && (
           <button
             className="primary-button"
-            disabled={isLoading}
+            disabled={loading}
             onClick={approve}
           >
-            {isLoading
+            {loading
               ? "Processing..."
               : `Approve ${
                   mode === "buy"
@@ -268,10 +248,10 @@ export default function TradePanel({
         !needsApproval && (
           <button
             className="primary-button"
-            disabled={isLoading}
+            disabled={loading}
             onClick={trade}
           >
-            {isLoading
+            {loading
               ? "Processing..."
               : mode === "buy"
                 ? "Buy"
@@ -279,23 +259,16 @@ export default function TradePanel({
           </button>
         )}
 
-      {isSuccess && (
-        <div className="success-message">
-          ✓ Transaction confirmed
-
-          <button
-            className="refresh-button"
-            onClick={handleSuccess}
-          >
-            Done
-          </button>
-        </div>
-      )}
-
       {error && (
         <div className="error-message">
           {error.shortMessage ||
             error.message}
+        </div>
+      )}
+
+      {isSuccess && (
+        <div className="success-message">
+          ✓ Transaction confirmed
         </div>
       )}
     </div>
